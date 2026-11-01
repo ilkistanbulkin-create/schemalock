@@ -88,6 +88,8 @@ SchemaLock is a static checker, and honest about it.
 - Edits made through Bash (`sed`, `>`), and old code is not re-checked when the schema changes
 - Multi-file Prisma schemas outside `prisma/schema/`
 - SQLAlchemy-style attribute access such as `User.nonexistent_column`
+- Raw SQL: `$queryRaw`, `$executeRaw` and other `$`-prefixed calls are skipped, and SQL written inside strings is not parsed. Table and column names there are never compared with the schema.
+- `.sql` files (migrations, views): the hook does not run on them.
 
 **Python HTTP checks exist but almost never trigger:** `requests` does not accept relative URLs, and real code uses absolute or variable URLs.
 
