@@ -30,6 +30,7 @@ Usage: python ast_validator.py <schema_file|project_dir> <code_file>
 Exit codes: 0 = OK, 1 = schema violations found, 3 = schema unreadable or tool error.
 """
 import ast
+import difflib
 import os
 import re
 import sys
@@ -105,6 +106,19 @@ def short_list(items):
     items = list(items)
     text = ", ".join(items[:MAX_LIST_ITEMS]) or "none"
     return text + ", …" if len(items) > MAX_LIST_ITEMS else text
+
+
+# Lowest difflib similarity for a "Did you mean" hint; 0.5 still matches userId -> id.
+SUGGESTION_CUTOFF = 0.5
+
+
+def closest_name(name, candidates):
+    """The candidate most similar to `name` (ignoring case), or None if none is close enough."""
+    by_lower = {}
+    for c in candidates:
+        by_lower.setdefault(c.lower(), c)
+    matches = difflib.get_close_matches(name.lower(), by_lower, n=1, cutoff=SUGGESTION_CUTOFF)
+    return by_lower[matches[0]] if matches else None
 
 
 class Schema:
@@ -184,7 +198,11 @@ class Checker:
         if name in self.schema.models[model]:
             return True
         known = short_list(self.schema.models[model])
-        self.error(line, f"column '{name}' not found in model '{model}'.\n  Available columns: {known}")
+        message = f"column '{name}' not found in model '{model}'.\n  Available columns: {known}"
+        suggestion = closest_name(name, self.schema.models[model])
+        if suggestion:
+            message += f"\n  Did you mean '{suggestion}'?"
+        self.error(line, message)
         return False
 
     def enum_value(self, model, column, value):
