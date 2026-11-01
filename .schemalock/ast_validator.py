@@ -72,6 +72,9 @@ STATIC_EXTENSIONS = (".png", ".jpg", ".jpeg", ".svg", ".ico", ".css", ".js", ".m
                      ".woff", ".woff2", ".txt", ".xml")
 IGNORED_PATH_PREFIXES = ("/_next/", "/api/auth/")
 
+# Every schema check needs one of these words in the file (prisma / Prisma() / x.prisma, fetch,
+# axios, requests); without them the checks are skipped. A plain substring match, so it never misses.
+QUERY_HINT_RE = re.compile(r"prisma|fetch|axios|requests", re.IGNORECASE)
 
 
 def normalize_path(url):
@@ -680,20 +683,24 @@ def main(argv):
         return EXIT_TOOL_ERROR
 
     checker = Checker(schema, code_file, api)
+    has_queries = QUERY_HINT_RE.search(text) is not None  # fast exit: skip the schema checks
     if ext == ".py":
         try:
-            check_python(text, checker)
-            if api is not None:
-                check_python_http(text, checker)
+            if has_queries:
+                check_python(text, checker)
+                if api is not None:
+                    check_python_http(text, checker)
+            else:  # still parse, so syntax errors are reported as before
+                ast.parse(text, filename=code_file)
         except SyntaxError as e:
             print(f"ERROR: {code_file}:{e.lineno}: Python syntax error: {e.msg}", file=sys.stderr)
             return EXIT_TOOL_ERROR
-    else:
+    elif has_queries:
         check_js(text, checker)
         if api is not None:
             check_js_http(text, checker)
 
-    run_rules(text, checker, ext)
+    run_rules(text, checker, ext)  # custom rules run on every file
 
     if checker.errors:
         for line, message in sorted(set(checker.errors)):
