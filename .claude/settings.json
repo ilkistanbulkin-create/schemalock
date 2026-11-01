@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PY=; for c in python python3; do if command -v \"$c\" >/dev/null 2>&1 && \"$c\" -c \"\" </dev/null >/dev/null 2>&1; then PY=\"$c\"; break; fi; done; if [ -n \"$PY\" ] && [ -f \"$CLAUDE_PROJECT_DIR/.schemalock/hook.py\" ]; then \"$PY\" \"$CLAUDE_PROJECT_DIR/.schemalock/hook.py\"; else printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"SchemaLock did not run: Python or hook.py not found\"}}'; exit 0; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
